@@ -26,7 +26,7 @@ public class WebLogAspect {
     /**
      * 横切点
      */
-    @Pointcut("execution(public * com.zxc.springlog.controller..*.*(..))")
+    @Pointcut("execution(public * com.zxc.springlog.controller..*.*(..))") //controller包
     public void webLog(){
     }
     /**
