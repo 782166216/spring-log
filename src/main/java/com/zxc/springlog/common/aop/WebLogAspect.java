@@ -5,6 +5,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -12,16 +13,13 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 
 @Aspect
 @Component
+@Order(200)
 public class WebLogAspect {
     private static final Logger logger = LoggerFactory.getLogger(WebLogAspect.class);
-
-    private ThreadLocal<Map<String, Object>> threadLocal = new ThreadLocal<>();
 
     /**
      * 横切点
@@ -40,27 +38,25 @@ public class WebLogAspect {
         RequestAttributes ra = RequestContextHolder.getRequestAttributes();
         ServletRequestAttributes sra = (ServletRequestAttributes) ra;
         HttpServletRequest request = sra.getRequest();
-        // 记录请求内容，threadInfo存储所有内容
-        Map<String, Object> threadInfo = new HashMap<>();
+
+        logger.info("====基于类的切面====");
         logger.info("URL : " + request.getRequestURL());
-        threadInfo.put("url", request.getRequestURL());
+
         logger.info("URI : " + request.getRequestURI());
-        threadInfo.put("uri", request.getRequestURI());
+
         logger.info("HTTP_METHOD : " + request.getMethod());
-        threadInfo.put("httpMethod", request.getMethod());
+
         logger.info("REMOTE_ADDR : " + request.getRemoteAddr());
-        threadInfo.put("ip", request.getRemoteAddr());
+
         logger.info("CLASS_METHOD : " + joinPoint.getSignature().getDeclaringTypeName() + "."
                 + joinPoint.getSignature().getName());
-        threadInfo.put("classMethod",
-                joinPoint.getSignature().getDeclaringTypeName() + "." + joinPoint.getSignature().getName());
+
         logger.info("ARGS : " + Arrays.toString(joinPoint.getArgs()));
-        threadInfo.put("args", Arrays.toString(joinPoint.getArgs()));
+
         logger.info("USER_AGENT"+request.getHeader("User-Agent"));
-        threadInfo.put("userAgent", request.getHeader("User-Agent"));
+
         logger.info("执行方法：" + controllerWebLog.name());
-        threadInfo.put("methodName", controllerWebLog.name());
-        threadLocal.set(threadInfo);//设置当前线程共享变量
+
     }
     /**
      * 执行成功后处理
@@ -70,12 +66,6 @@ public class WebLogAspect {
      */
     @AfterReturning(value = "webLog()&& @annotation(controllerWebLog)", returning = "ret")
     public void doAfterReturning(ControllerWebLog controllerWebLog, Object ret) throws Throwable {
-        Map<String, Object> threadInfo = threadLocal.get();
-        threadInfo.put("result", ret);
-        if (controllerWebLog.intoDb()) {
-            //插入数据库操作
-            //insertResult(threadInfo);
-        }
         // 处理完请求，返回内容
         logger.info("RESPONSE : " + ret);
     }
@@ -89,11 +79,8 @@ public class WebLogAspect {
     public Object doAround(ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
         long startTime = System.currentTimeMillis();
         Object ob = proceedingJoinPoint.proceed();
-        Map<String, Object> threadInfo = threadLocal.get();
         Long takeTime = System.currentTimeMillis() - startTime;
-        threadInfo.put("takeTime", takeTime);
         logger.info("耗时：" + takeTime);
-        threadLocal.set(threadInfo);
         return ob;
     }
     /**
